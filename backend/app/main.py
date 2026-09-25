@@ -5,7 +5,8 @@ from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app import __version__
@@ -55,6 +56,35 @@ def create_app() -> FastAPI:
 
     # 注册路由
     app.include_router(api_router)
+
+    # 桌面/单机部署：挂载前端静态资源（backend/static 或 STATIC_DIR）
+    import os
+    static_dir = Path(os.environ.get("STATIC_DIR", "./static")).resolve()
+    if not static_dir.exists():
+        static_dir = Path(__file__).resolve().parent.parent / "static"
+    if static_dir.exists():
+        app.mount("/assets", StaticFiles(directory=str(static_dir / "assets")), name="assets")
+
+        @app.get("/")
+        async def spa_index():
+            index = static_dir / "index.html"
+            if index.exists():
+                return FileResponse(index)
+            return JSONResponse({"message": "前端未构建，请访问 /docs"})
+
+        @app.get("/{full_path:path}")
+        async def spa_fallback(full_path: str):
+            # API 已由 router 处理；其余回落到 SPA
+            if full_path.startswith("api"):
+                return JSONResponse({"message": "Not Found"}, status_code=404)
+            candidate = static_dir / full_path
+            if candidate.is_file():
+                return FileResponse(candidate)
+            index = static_dir / "index.html"
+            if index.exists():
+                return FileResponse(index)
+            return JSONResponse({"message": "Not Found"}, status_code=404)
+
 
     # ---------- 全局异常处理 ----------
     @app.exception_handler(StarletteHTTPException)
