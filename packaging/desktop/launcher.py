@@ -1,8 +1,4 @@
-"""模切流程系统桌面启动器
-
-打包为 EXE 后：启动内置后端，打开浏览器访问本地页面。
-构建前请先执行 frontend 构建，并把 dist 复制到 backend/static。
-"""
+"""模切流程系统桌面启动器 — PyInstaller 打包入口"""
 from __future__ import annotations
 
 import os
@@ -19,34 +15,58 @@ def app_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
-def ensure_paths():
+def meipass() -> Path | None:
+    p = getattr(sys, "_MEIPASS", None)
+    return Path(p) if p else None
+
+
+def ensure_paths() -> Path:
     root = app_root()
-    # 让 backend 可被导入
+    # 开发：backend 在源码树；打包：模块在 _MEIPASS
     backend = root / "backend"
     if backend.exists():
         sys.path.insert(0, str(backend))
-    os.chdir(root)
+    mp = meipass()
+    if mp:
+        sys.path.insert(0, str(mp))
+        static = mp / "static"
+        if static.exists():
+            os.environ["STATIC_DIR"] = str(static)
+    else:
+        static = root / "backend" / "static"
+        if static.exists():
+            os.environ["STATIC_DIR"] = str(static)
+
     data = root / "data"
     data.mkdir(exist_ok=True)
-    os.environ.setdefault("DATABASE_URL", f"sqlite+aiosqlite:///{data / 'die_cutting.db'}")
-    static = root / "backend" / "static"
-    if static.exists():
-        os.environ.setdefault("STATIC_DIR", str(static))
+    os.environ.setdefault(
+        "DATABASE_URL",
+        f"sqlite+aiosqlite:///{(data / 'die_cutting.db').as_posix()}",
+    )
+    os.environ.setdefault("APP_ENV", "production")
+    os.chdir(root)
     return root
 
 
-def run_server():
+def run_server() -> None:
     import uvicorn
     from app.main import app
 
     uvicorn.run(app, host="127.0.0.1", port=8000, log_level="info")
 
 
-def main():
+def main() -> None:
     ensure_paths()
     t = threading.Thread(target=run_server, daemon=True)
     t.start()
-    time.sleep(1.5)
+    for _ in range(40):
+        time.sleep(0.25)
+        try:
+            import urllib.request
+            urllib.request.urlopen("http://127.0.0.1:8000/api/v1/health", timeout=1)
+            break
+        except Exception:
+            continue
     webbrowser.open("http://127.0.0.1:8000/")
     print("模切流程系统已启动: http://127.0.0.1:8000/")
     print("关闭本窗口将停止服务。")
