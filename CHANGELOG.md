@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.0.2 (仓库与采购)
+
+- 仓库：库位维护、按仓库存合计卡片、类型 WIP/QC/SCRAP
+- 采购：申请 PR、申请转 PO、多行订单+单价、状态筛选、确认
+
 ## v1.0.1 (优化)
 
 - CI：`main` 分支 push 自动触发 Windows EXE / Android APK 构建

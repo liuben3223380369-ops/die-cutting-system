@@ -1,3 +1,4 @@
+from pydantic import BaseModel
 """采购 API"""
 from typing import List, Optional
 
@@ -132,6 +133,52 @@ async def list_requests(db: AsyncSession = Depends(get_db)):
 
 
 # ---------- 采购订单 ----------
+
+
+class CreateOrderFromRequestBody(BaseModel):
+    request_id: int
+    supplier_id: int
+    auto_confirm: bool = False
+
+
+@router.post("/orders/from-request", response_model=APIResponse[PurchaseOrderOut])
+async def create_order_from_request(
+    body: CreateOrderFromRequestBody, db: AsyncSession = Depends(get_db)
+):
+    """采购申请转采购订单"""
+    svc = PurchaseService(db)
+    try:
+        po = await svc.create_order_from_request(
+            request_id=body.request_id,
+            supplier_id=body.supplier_id,
+            auto_confirm=body.auto_confirm,
+        )
+        po = await svc.get_order_with_lines(po.id)
+        lines = list(po.lines) if po and hasattr(po, "lines") else []
+        # rebuild out similar to get_order
+        from app.models.purchase import PurchaseOrderLine
+        result = await db.execute(
+            select(PurchaseOrderLine).where(PurchaseOrderLine.order_id == po.id)
+        )
+        lines = result.scalars().all()
+        out = PurchaseOrderOut(
+            id=po.id,
+            doc_no=po.doc_no,
+            status=po.status,
+            supplier_id=po.supplier_id,
+            order_date=po.order_date,
+            expected_date=po.expected_date,
+            currency=po.currency,
+            remark=po.remark,
+            request_id=po.request_id,
+            created_at=po.created_at,
+            lines=[POLineOut.model_validate(l) for l in lines],
+        )
+        return APIResponse(data=out)
+    except PurchaseError as e:
+        raise HTTPException(400, str(e))
+
+
 @router.post("/orders", response_model=APIResponse[PurchaseOrderOut])
 async def create_order(body: PurchaseOrderCreate, db: AsyncSession = Depends(get_db)):
     svc = PurchaseService(db)

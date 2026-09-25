@@ -84,6 +84,52 @@ class PurchaseService:
         return pr
 
     # ---------- 采购订单 ----------
+
+    async def create_order_from_request(
+        self,
+        request_id: int,
+        supplier_id: int,
+        order_date: Optional[date] = None,
+        auto_confirm: bool = False,
+    ) -> PurchaseOrder:
+        """采购申请转采购订单"""
+        pr = await self.db.get(PurchaseRequest, request_id)
+        if not pr:
+            raise PurchaseError("采购申请不存在")
+        if pr.status not in ("SUBMITTED", "APPROVED", "DRAFT"):
+            raise PurchaseError(f"申请状态不可转单: {pr.status}")
+
+        lines_result = await self.db.execute(
+            select(PurchaseRequestLine).where(
+                PurchaseRequestLine.request_id == request_id
+            )
+        )
+        pr_lines = lines_result.scalars().all()
+        if not pr_lines:
+            raise PurchaseError("申请无明细行")
+
+        lines = [
+            {
+                "material_id": ln.material_id,
+                "qty": ln.qty,
+                "unit": ln.unit,
+                "expected_date": ln.required_date,
+                "remark": ln.remark,
+            }
+            for ln in pr_lines
+        ]
+        po = await self.create_order(
+            supplier_id=supplier_id,
+            order_date=order_date or date.today(),
+            lines=lines,
+            remark=f"来源申请 {pr.doc_no}",
+            request_id=pr.id,
+        )
+        pr.status = "ORDERED"
+        if auto_confirm:
+            po = await self.confirm_order(po.id)
+        return po
+
     async def create_order(
         self,
         supplier_id: int,
