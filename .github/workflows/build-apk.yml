@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       api_base:
-        description: "Backend API base URL for the APK (e.g. https://example.com/api/v1)"
+        description: "Backend API base URL for the APK"
         required: false
         default: "http://10.0.2.2:8000/api/v1"
   push:
@@ -34,50 +34,60 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools platforms;android-34 build-tools;34.0.0
 
-      - name: Build frontend with API base
+      - name: Accept Android licenses
+        run: |
+          yes | sdkmanager --licenses || true
+          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" || true
+
+      - name: Build frontend
         working-directory: frontend
         env:
           VITE_API_BASE: ${{ github.event.inputs.api_base || 'http://10.0.2.2:8000/api/v1' }}
         run: |
           npm install
-          # Ensure production build uses VITE_API_BASE
           echo "VITE_API_BASE=$VITE_API_BASE" > .env.production
           npm run build
 
       - name: Scaffold Capacitor Android
-        working-directory: packaging/android
         run: |
+          mkdir -p packaging/android
+          cd packaging/android
           npm init -y
-          npm install @capacitor/core @capacitor/cli @capacitor/android
-          npx cap init "DieCutting" "com.diecutting.app" --web-dir ../../frontend/dist || true
-          # Write capacitor config if missing
+          npm install @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6
           cat > capacitor.config.json << 'CFG'
           {
             "appId": "com.diecutting.app",
-            "appName": "模切流程系统",
+            "appName": "DieCutting",
             "webDir": "../../frontend/dist",
-            "server": {
-              "androidScheme": "https",
-              "cleartext": true
-            }
+            "server": { "androidScheme": "http", "cleartext": true }
           }
           CFG
-          npx cap add android || true
+          npx cap add android
           npx cap sync android
 
-      - name: Enable cleartext HTTP (debug)
+      - name: Enable cleartext traffic
         run: |
-          MANIFEST="packaging/android/android/app/src/main/AndroidManifest.xml"
+          MANIFEST=packaging/android/android/app/src/main/AndroidManifest.xml
           if [ -f "$MANIFEST" ]; then
-            sed -i 's/<application /<application android:usesCleartextTraffic="true" /' "$MANIFEST" || true
+            python3 - <<'PY'
+          from pathlib import Path
+          p = Path("packaging/android/android/app/src/main/AndroidManifest.xml")
+          t = p.read_text()
+          if "usesCleartextTraffic" not in t:
+              t = t.replace("<application", '<application android:usesCleartextTraffic="true"', 1)
+              p.write_text(t)
+          print("manifest ok")
+          PY
           fi
 
       - name: Build Debug APK
         working-directory: packaging/android/android
         run: |
-          chmod +x gradlew || true
-          ./gradlew assembleDebug --no-daemon
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
