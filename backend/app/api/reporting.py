@@ -96,3 +96,31 @@ async def export_ledgers_xlsx(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@router.get("/export/work-orders.xlsx")
+async def export_work_orders_xlsx(db: AsyncSession = Depends(get_db)):
+    svc = ReportingService(db)
+    try:
+        content = await svc.export_work_orders_excel()
+    except RuntimeError as e:
+        raise HTTPException(500, str(e))
+    return Response(
+        content=content,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": 'attachment; filename="work_orders.xlsx"'},
+    )
+
+
+@router.get("/export/balances.xlsx")
+async def export_balances_xlsx(db: AsyncSession = Depends(get_db)):
+    svc = ReportingService(db)
+    try:
+        content = await svc.export_balances_excel()
+    except RuntimeError as e:
+        raise HTTPException(500, str(e))
+    return Response(
+        content=content,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": 'attachment; filename="stock_balances.xlsx"'},
+    )

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { api } from '../api/client'
 import { useRouter } from '../router'
 import StatusBadge from '../components/StatusBadge.vue'
@@ -45,7 +45,14 @@ function openWO(id: number) {
   push('workOrders')
 }
 
-onMounted(load)
+let timer: number | undefined
+onMounted(() => {
+  load()
+  timer = window.setInterval(load, 30000)
+})
+onUnmounted(() => {
+  if (timer) clearInterval(timer)
+})
 </script>
 
 <template>

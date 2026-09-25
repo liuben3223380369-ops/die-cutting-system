@@ -282,3 +282,45 @@ class ReportingService:
             limit=5000,
         )
         return self.build_excel_bytes({"库存流水": rows})
+
+    async def export_work_orders_excel(self) -> bytes:
+        result = await self.db.execute(
+            select(WorkOrder).order_by(WorkOrder.id.desc()).limit(500)
+        )
+        rows = []
+        for wo in result.scalars().all():
+            plan = wo.plan_qty or Decimal("0")
+            done = wo.completed_qty or Decimal("0")
+            pct = float(min(done / plan * 100, 100)) if plan else 0
+            rows.append({
+                "工单号": wo.doc_no,
+                "状态": wo.status,
+                "产品ID": wo.product_id,
+                "版本ID": wo.product_version_id,
+                "计划数量": float(plan),
+                "完工数量": float(done),
+                "报废数量": float(wo.scrap_qty or 0),
+                "进度%": round(pct, 1),
+                "领料仓": wo.warehouse_id,
+                "成品仓": wo.fg_warehouse_id,
+                "WIP仓": getattr(wo, "wip_warehouse_id", None),
+            })
+        return self.build_excel_bytes({"生产工单": rows})
+
+    async def export_balances_excel(self) -> bytes:
+        result = await self.db.execute(select(StockBalance).limit(2000))
+        rows = []
+        for b in result.scalars().all():
+            avail = b.qty - b.qty_reserved - b.qty_frozen
+            rows.append({
+                "物料ID": b.material_id,
+                "仓库ID": b.warehouse_id,
+                "库位ID": b.location_id,
+                "批次": b.batch_no,
+                "卷号": b.roll_no,
+                "数量": float(b.qty),
+                "预留": float(b.qty_reserved),
+                "冻结": float(b.qty_frozen),
+                "可用": float(avail),
+            })
+        return self.build_excel_bytes({"库存余额": rows})

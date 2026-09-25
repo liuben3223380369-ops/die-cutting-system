@@ -76,6 +76,14 @@ function exportLedgers() {
   window.open(`/api/v1/reports/export/ledgers.xlsx?${q}`, '_blank')
 }
 
+function exportWorkOrders() {
+  window.open('/api/v1/reports/export/work-orders.xlsx', '_blank')
+}
+
+function exportBalances() {
+  window.open('/api/v1/reports/export/balances.xlsx', '_blank')
+}
+
 onMounted(loadDaily)
 </script>
 
@@ -107,6 +115,8 @@ onMounted(loadDaily)
         <label>结束 <input type="date" v-model="endDate" /></label>
         <button class="btn primary" :disabled="loading" @click="loadPeriod">查询</button>
         <button class="btn" @click="exportLedgers">导出流水 Excel</button>
+        <button class="btn" @click="exportWorkOrders">导出工单 Excel</button>
+        <button class="btn" @click="exportBalances">导出余额 Excel</button>
       </div>
       <div v-if="period" class="metrics">
         <div v-for="m in periodMetrics" :key="m.key" class="metric-card">

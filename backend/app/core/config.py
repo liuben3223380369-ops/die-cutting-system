@@ -22,10 +22,12 @@ class Settings(BaseSettings):
     # Database
     database_url: str = "sqlite+aiosqlite:///./data/die_cutting.db"
 
-    # CORS
+    # CORS — 开发前端 + 本机 EXE 同源场景；可用 CORS_ORIGINS 环境变量覆盖
     cors_origins: List[str] = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
     ]
 
     # Logging

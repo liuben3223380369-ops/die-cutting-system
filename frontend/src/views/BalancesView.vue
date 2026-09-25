@@ -30,6 +30,10 @@ async function load() {
   }
 }
 
+function exportXlsx() {
+  window.open('/api/v1/reports/export/balances.xlsx', '_blank')
+}
+
 onMounted(load)
 </script>
 
@@ -37,6 +41,7 @@ onMounted(load)
   <div>
     <div class="toolbar">
       <h2 class="page-title">库存余额</h2>
+      <button class="btn" @click="exportXlsx">导出 Excel</button>
       <button class="btn" @click="load">刷新</button>
     </div>
     <div v-if="error" class="error-box">{{ error }}</div>

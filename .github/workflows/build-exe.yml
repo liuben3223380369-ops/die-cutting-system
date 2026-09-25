@@ -3,13 +3,9 @@ name: Build Windows EXE
 on:
   workflow_dispatch:
   push:
+    branches: [main]
     tags:
       - "v*"
-    paths:
-      - "backend/**"
-      - "frontend/**"
-      - "packaging/desktop/**"
-      - ".github/workflows/build-exe.yml"
 
 jobs:
   build-exe:
