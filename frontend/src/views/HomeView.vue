@@ -93,6 +93,7 @@ function metricEntries() {
           <button class="ql" @click="push('workOrders')">生产工单</button>
           <button class="ql" @click="push('orders')">采购订单</button>
           <button class="ql" @click="push('returns')">采购退货</button>
+          <button class="ql" @click="push('prices')">价格历史</button>
           <button class="ql" @click="push('arrivals')">到货/IQC</button>
           <button class="ql" @click="push('balances')">库存余额</button>
           <button class="ql" @click="push('adjust')">盘点/调拨</button>

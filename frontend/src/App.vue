@@ -11,6 +11,7 @@ import AdjustView from './views/AdjustView.vue'
 import OrdersView from './views/OrdersView.vue'
 import ArrivalsView from './views/ArrivalsView.vue'
 import ReturnsView from './views/ReturnsView.vue'
+import PricesView from './views/PricesView.vue'
 import ProductsView from './views/ProductsView.vue'
 import MrpView from './views/MrpView.vue'
 import WorkOrdersView from './views/WorkOrdersView.vue'
@@ -32,6 +33,7 @@ const viewMap: Record<RouteName, any> = {
   orders: OrdersView,
   arrivals: ArrivalsView,
   returns: ReturnsView,
+  prices: PricesView,
   products: ProductsView,
   mrp: MrpView,
   workOrders: WorkOrdersView,

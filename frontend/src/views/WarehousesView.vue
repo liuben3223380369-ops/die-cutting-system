@@ -24,6 +24,16 @@ const form = ref({ code: '', name: '', warehouse_type: 'NORMAL' })
 const locForm = ref({ warehouse_id: 0, code: '', name: '' })
 const saving = ref(false)
 const selectedWh = ref(0)
+const showTransfer = ref(false)
+const materials = ref<Array<{ id: number; code: string; name: string }>>([])
+const tr = ref({
+  material_id: 0,
+  from_warehouse_id: 0,
+  to_warehouse_id: 0,
+  qty: 1,
+  batch_no: '',
+})
+
 
 const typeLabel: Record<string, string> = {
   NORMAL: '普通',
@@ -51,18 +61,23 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    const [whs, locs, bals] = await Promise.all([
+    const [whs, locs, bals, mats] = await Promise.all([
       api.get<Warehouse[]>('/master/warehouses'),
       api.get<Location[]>('/master/locations').catch(() => []),
       api.get<any[]>('/inventory/balances').catch(() => []),
+      api.get<Array<{ id: number; code: string; name: string }>>('/master/materials').catch(() => []),
     ])
     rows.value = whs
     locations.value = locs || []
     balances.value = bals || []
+    materials.value = mats || []
     if (whs.length && !locForm.value.warehouse_id) {
       locForm.value.warehouse_id = whs[0].id
       selectedWh.value = whs[0].id
+      tr.value.from_warehouse_id = whs[0].id
+      tr.value.to_warehouse_id = whs[whs.length > 1 ? 1 : 0].id
     }
+    if (materials.value.length) tr.value.material_id = materials.value[0].id
   } catch (e: any) {
     error.value = e.message
   } finally {
@@ -82,6 +97,29 @@ async function submit() {
     error.value = e.message
   } finally {
     saving.value = false
+  }
+}
+
+async function doTransfer() {
+  if (tr.value.from_warehouse_id === tr.value.to_warehouse_id) {
+    error.value = '调出仓与调入仓不能相同'
+    return
+  }
+  try {
+    await api.post('/inventory/transfer', {
+      source_id: `TR${Date.now()}`,
+      material_id: tr.value.material_id,
+      from_warehouse_id: tr.value.from_warehouse_id,
+      to_warehouse_id: tr.value.to_warehouse_id,
+      qty: tr.value.qty,
+      batch_no: tr.value.batch_no || '',
+      remark: '仓库页快捷调拨',
+    })
+    msg.value = '调拨成功'
+    showTransfer.value = false
+    await load()
+  } catch (e: any) {
+    error.value = e.message
   }
 }
 
@@ -105,6 +143,7 @@ onMounted(load)
     <div class="toolbar">
       <h2 class="page-title">仓库 / 库位</h2>
       <div>
+        <button class="btn" @click="showTransfer = !showTransfer">仓间调拨</button>
         <button class="btn" @click="showLoc = !showLoc">+ 库位</button>
         <button class="btn primary" @click="showForm = !showForm">{{ showForm ? '取消' : '+ 仓库' }}</button>
       </div>
@@ -118,6 +157,30 @@ onMounted(load)
         <strong>{{ typeLabel[w.warehouse_type] || w.warehouse_type }}</strong>
         <em>库存 Σ {{ (stockByWh[w.id] || 0).toFixed(1) }}</em>
       </div>
+    </div>
+
+    <div v-if="showTransfer" class="card form-card">
+      <h3>仓间调拨</h3>
+      <div class="form-grid">
+        <label>物料
+          <select v-model.number="tr.material_id">
+            <option v-for="m in materials" :key="m.id" :value="m.id">{{ m.code }} {{ m.name }}</option>
+          </select>
+        </label>
+        <label>调出仓
+          <select v-model.number="tr.from_warehouse_id">
+            <option v-for="w in rows" :key="w.id" :value="w.id">{{ w.code }}</option>
+          </select>
+        </label>
+        <label>调入仓
+          <select v-model.number="tr.to_warehouse_id">
+            <option v-for="w in rows" :key="w.id" :value="w.id">{{ w.code }}</option>
+          </select>
+        </label>
+        <label>数量 <input type="number" v-model.number="tr.qty" min="0.001" step="1" /></label>
+        <label>批次 <input v-model="tr.batch_no" /></label>
+      </div>
+      <button class="btn primary" @click="doTransfer">提交调拨</button>
     </div>
 
     <div v-if="showForm" class="card form-card">

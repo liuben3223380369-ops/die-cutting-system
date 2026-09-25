@@ -179,8 +179,16 @@ async function convertPR(pr: PR) {
 
 function lineInfo(o: PO) {
   return (o.lines || [])
-    .map(l => `物料${l.material_id}×${l.qty}${l.qty_received != null ? `(已收${l.qty_received})` : ''}`)
+    .map(l => {
+      const recv = Number(l.qty_received || 0)
+      const remain = Number(l.qty) - recv
+      return `物料${l.material_id}×${l.qty} 已收${recv} 剩余${remain}`
+    })
     .join('；') || '—'
+}
+
+function remainTotal(o: PO) {
+  return (o.lines || []).reduce((s, l) => s + (Number(l.qty) - Number(l.qty_received || 0)), 0)
 }
 
 onMounted(load)
@@ -258,10 +266,11 @@ onMounted(load)
           { key: 'status', label: '状态' },
           { key: 'supplier_id', label: '供应商' },
           { key: 'order_date', label: '日期' },
+          { key: 'remain', label: '待到货' },
           { key: 'line_info', label: '明细' },
           { key: 'actions', label: '操作' },
         ]"
-        :rows="filteredOrders.map(o => ({ ...o, line_info: lineInfo(o), actions: o.id })) as any"
+        :rows="filteredOrders.map(o => ({ ...o, line_info: lineInfo(o), remain: remainTotal(o), actions: o.id })) as any"
         :loading="loading"
       >
         <template #status="{ row }">

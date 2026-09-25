@@ -14,6 +14,7 @@ export type RouteName =
   | 'orders'
   | 'arrivals'
   | 'returns'
+  | 'prices'
   | 'products'
   | 'mrp'
   | 'workOrders'
@@ -35,6 +36,7 @@ const routes: Record<RouteName, { title: string; group: string }> = {
   orders: { title: '采购订单', group: '采购' },
   arrivals: { title: '到货/IQC', group: '采购' },
   returns: { title: '采购退货', group: '采购' },
+  prices: { title: '价格历史', group: '采购' },
   products: { title: '产品/BOM/工艺', group: '工程' },
   mrp: { title: '销售订单/MRP', group: '计划' },
   workOrders: { title: '生产工单', group: '生产' },
