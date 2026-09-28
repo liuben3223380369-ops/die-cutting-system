@@ -257,6 +257,7 @@ onMounted(load)
           <option value="DRAFT">草稿</option>
           <option value="CONFIRMED">已确认</option>
           <option value="PARTIAL">部分到货</option>
+          <option value="COMPLETED">已完成</option>
           <option value="CLOSED">关闭</option>
         </select>
       </div>

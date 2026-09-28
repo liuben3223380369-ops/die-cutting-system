@@ -8,7 +8,7 @@ from datetime import date
 from decimal import Decimal
 from typing import List, Optional
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -473,6 +473,40 @@ class PurchaseService:
         return rec
 
     # ---------- 查询辅助 ----------
+
+    async def open_purchase_summary(self) -> list[dict]:
+        """未结采购汇总：按供应商 + 物料的在途数量"""
+        result = await self.db.execute(
+            select(
+                PurchaseOrder.supplier_id,
+                PurchaseOrderLine.material_id,
+                PurchaseOrder.doc_no,
+                PurchaseOrder.status,
+                PurchaseOrderLine.id.label("line_id"),
+                PurchaseOrderLine.qty,
+                PurchaseOrderLine.qty_received,
+            )
+            .join(PurchaseOrderLine, PurchaseOrderLine.order_id == PurchaseOrder.id)
+            .where(PurchaseOrder.status.in_(["CONFIRMED", "PARTIAL"]))
+            .order_by(PurchaseOrder.supplier_id, PurchaseOrder.id)
+        )
+        rows = []
+        for r in result.all():
+            remain = r.qty - r.qty_received
+            if remain <= 0:
+                continue
+            rows.append({
+                "supplier_id": r.supplier_id,
+                "material_id": r.material_id,
+                "doc_no": r.doc_no,
+                "status": r.status,
+                "order_line_id": r.line_id,
+                "qty_ordered": float(r.qty),
+                "qty_received": float(r.qty_received),
+                "qty_open": float(remain),
+            })
+        return rows
+
     async def get_order_with_lines(self, order_id: int) -> Optional[PurchaseOrder]:
         stmt = (
             select(PurchaseOrder)

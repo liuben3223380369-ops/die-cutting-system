@@ -514,3 +514,11 @@ async def list_price_history(
     result = await db.execute(stmt)
     items = result.scalars().all()
     return APIResponse(data=[PriceHistoryOut.model_validate(i) for i in items])
+
+
+@router.get("/open-summary", response_model=APIResponse[list])
+async def open_purchase_summary(db: AsyncSession = Depends(get_db)):
+    """未结采购/在途汇总（CONFIRMED + PARTIAL 的剩余可到货）"""
+    svc = PurchaseService(db)
+    data = await svc.open_purchase_summary()
+    return APIResponse(data=data)

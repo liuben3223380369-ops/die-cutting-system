@@ -123,6 +123,38 @@ function selectLine(lineId: number) {
   }
 }
 
+async function createArrivalAllRemain() {
+  if (!arrivalForm.value.order_id) {
+    error.value = '请选择采购订单'
+    return
+  }
+  const lines = selectedPoLines.value
+  if (!lines.length) {
+    error.value = '该订单无剩余可到货行'
+    return
+  }
+  try {
+    const d = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+    await api.post('/purchase/arrivals', {
+      order_id: arrivalForm.value.order_id,
+      arrival_date: arrivalForm.value.arrival_date,
+      warehouse_id: arrivalForm.value.warehouse_id,
+      lines: lines.map(l => ({
+        order_line_id: l.id,
+        material_id: l.material_id,
+        qty: l.remain,
+        batch_no: arrivalForm.value.batch_no || `B${d}-${l.material_id}`,
+      })),
+    })
+    showArrival.value = false
+    msg.value = `已登记全部剩余 ${lines.length} 行到货，请做 IQC`
+    arrivalForm.value.batch_no = ''
+    await load()
+  } catch (e: any) {
+    error.value = e.message
+  }
+}
+
 async function createArrival() {
   if (!arrivalForm.value.order_id || !arrivalForm.value.order_line_id) {
     error.value = '请选择采购订单及明细行'
@@ -251,7 +283,9 @@ onMounted(load)
         <label>数量 <input type="number" v-model.number="arrivalForm.qty" min="0.001" step="1" /></label>
         <label>批次号 <input v-model="arrivalForm.batch_no" placeholder="自动生成可改" /></label>
       </div>
-      <button class="btn primary" @click="createArrival">提交到货</button>
+      <p class="tip" v-if="selectedPoLines.length">当前订单剩余可到货 {{ selectedPoLines.length }} 行，合计 {{ selectedPoLines.reduce((s, l) => s + l.remain, 0) }}</p>
+      <button class="btn primary" @click="createArrival">提交本行到货</button>
+      <button class="btn" @click="createArrivalAllRemain">一键到货全部剩余</button>
     </div>
 
     <div v-if="showIqc" class="card form-card">

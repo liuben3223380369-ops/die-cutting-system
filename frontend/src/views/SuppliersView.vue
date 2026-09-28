@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { api, type Supplier } from '../api/client'
 import DataTable from '../components/DataTable.vue'
 
@@ -9,6 +9,14 @@ const error = ref('')
 const showForm = ref(false)
 const form = ref({ code: '', name: '', contact: '', phone: '' })
 const saving = ref(false)
+const openRows = ref<Array<{
+  supplier_id: number
+  material_id: number
+  doc_no: string
+  status: string
+  qty_open: number
+}>>([])
+
 
 const columns = [
   { key: 'code', label: '编码' },
@@ -16,11 +24,16 @@ const columns = [
   { key: 'contact', label: '联系人' },
   { key: 'phone', label: '电话' },
 ]
+const supplierColumns = [
+  ...columns,
+  { key: 'open_qty', label: '在途数量' },
+]
 
 async function load() {
   loading.value = true
   try {
     rows.value = await api.get<Supplier[]>('/master/suppliers')
+    openRows.value = await api.get<any[]>('/purchase/open-summary').catch(() => [])
   } catch (e: any) {
     error.value = e.message
   } finally {
@@ -42,6 +55,14 @@ async function submit() {
   }
 }
 
+const openBySupplier = computed(() => {
+  const m: Record<number, number> = {}
+  for (const r of openRows.value) {
+    m[r.supplier_id] = (m[r.supplier_id] || 0) + Number(r.qty_open || 0)
+  }
+  return m
+})
+
 onMounted(load)
 </script>
 
@@ -62,7 +83,31 @@ onMounted(load)
       <button class="btn primary" :disabled="saving" @click="submit">保存</button>
     </div>
     <div class="card">
-      <DataTable :columns="columns" :rows="rows as any" :loading="loading" />
+      <DataTable
+        :columns="supplierColumns"
+        :rows="rows.map(r => ({
+          ...r,
+          open_qty: (openBySupplier[r.id] || 0).toFixed(2),
+        })) as any"
+        :loading="loading"
+      />
+    </div>
+
+    <div class="card">
+      <h3>未结采购明细（在途）</h3>
+      <DataTable
+        :columns="[
+          { key: 'doc_no', label: 'PO单号' },
+          { key: 'status', label: '状态' },
+          { key: 'supplier_id', label: '供应商' },
+          { key: 'material_id', label: '物料' },
+          { key: 'qty_ordered', label: '订购' },
+          { key: 'qty_received', label: '已收' },
+          { key: 'qty_open', label: '在途' },
+        ]"
+        :rows="openRows as any"
+        :loading="loading"
+      />
     </div>
   </div>
 </template>
@@ -70,6 +115,7 @@ onMounted(load)
 <style scoped>
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
 .page-title { margin: 0; font-size: 1.25rem; color: #1e3a5f; }
+.card h3 { margin: 0 0 0.75rem; font-size: 0.95rem; color: #64748b; }
 .card { background: #fff; border-radius: 10px; padding: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,.06); margin-bottom: 1rem; }
 .form-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin-bottom: 1rem; }
 label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.8rem; color: #64748b; }
