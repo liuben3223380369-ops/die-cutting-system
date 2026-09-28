@@ -10,6 +10,13 @@ const error = ref('')
 const loading = ref(true)
 const { push } = useRouter()
 
+const todos = ref({
+  openPoLines: 0,
+  openPoQty: 0,
+  pendingIqc: 0,
+  activeWo: 0,
+})
+
 const metricLabels: Record<string, string> = {
   purchase_receipt_qty: '今日采购入库',
   production_issue_qty: '今日生产领料',
@@ -21,12 +28,27 @@ const metricLabels: Record<string, string> = {
 
 onMounted(async () => {
   try {
-    const [h, d] = await Promise.all([
+    const [h, d, openSum, arrivals, board] = await Promise.all([
       api.get<HealthData>('/health'),
       api.get('/reports/daily').catch(() => null),
+      api.get<any[]>('/purchase/open-summary').catch(() => []),
+      api.get<any[]>('/purchase/arrivals').catch(() => []),
+      api.get<any>('/production/board').catch(() => null),
     ])
     health.value = h
     daily.value = d
+    const opens = openSum || []
+    todos.value.openPoLines = opens.length
+    todos.value.openPoQty = opens.reduce((s: number, r: any) => s + Number(r.qty_open || 0), 0)
+    let pending = 0
+    for (const a of arrivals || []) {
+      for (const line of a.lines || []) {
+        if (line.qc_status === 'PENDING') pending++
+      }
+    }
+    todos.value.pendingIqc = pending
+    const summary = board?.summary || {}
+    todos.value.activeWo = Number(summary.released || 0) + Number(summary.in_progress || 0)
   } catch (e: any) {
     error.value = e.message || '无法连接后端'
   } finally {
@@ -57,6 +79,32 @@ function metricEntries() {
           <p><span class="label">状态</span> <StatusBadge :status="health.status" /></p>
           <p><span class="label">环境</span> {{ health.environment }}</p>
           <p><span class="label">数据库</span> {{ health.database }}</p>
+        </div>
+      </div>
+
+      <div class="card full">
+        <h3>待办看板</h3>
+        <div class="todo-grid">
+          <button class="todo" @click="push('orders')">
+            <span class="t-num">{{ todos.openPoLines }}</span>
+            <span class="t-label">未结 PO 行</span>
+            <span class="t-sub">在途量 {{ todos.openPoQty.toFixed(1) }}</span>
+          </button>
+          <button class="todo warn" @click="push('arrivals')">
+            <span class="t-num">{{ todos.pendingIqc }}</span>
+            <span class="t-label">待 IQC</span>
+            <span class="t-sub">到货未检行</span>
+          </button>
+          <button class="todo" @click="push('board')">
+            <span class="t-num">{{ todos.activeWo }}</span>
+            <span class="t-label">在制工单</span>
+            <span class="t-sub">已下达 + 生产中</span>
+          </button>
+          <button class="todo" @click="push('ledgers')">
+            <span class="t-num">↻</span>
+            <span class="t-label">库存流水</span>
+            <span class="t-sub">可一键冲销</span>
+          </button>
         </div>
       </div>
 
@@ -180,6 +228,17 @@ function metricEntries() {
 .m-value { font-size: 1.1rem; font-weight: 600; color: #1e3a5f; margin-top: 0.25rem; }
 .steps { margin: 0; padding-left: 1.25rem; font-size: 0.875rem; color: #475569; line-height: 1.7; }
 .muted { color: #94a3b8; font-size: 0.875rem; }
+.todo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.75rem; }
+.todo {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 0.2rem;
+  padding: 0.9rem 1rem; border: 1px solid #e2e8f0; border-radius: 10px;
+  background: #f8fafc; cursor: pointer; text-align: left;
+}
+.todo:hover { border-color: #93c5fd; background: #eff6ff; }
+.todo.warn { background: #fffbeb; border-color: #fde68a; }
+.t-num { font-size: 1.5rem; font-weight: 700; color: #1e3a5f; }
+.t-label { font-size: 0.85rem; color: #334155; font-weight: 600; }
+.t-sub { font-size: 0.75rem; color: #94a3b8; }
 .quick-links { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .ql { padding: 0.5rem 0.9rem; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; cursor: pointer; font-size: 0.85rem; color: #1e3a5f; }
 .ql:hover { background: #eff6ff; border-color: #93c5fd; }

@@ -7,6 +7,7 @@ import StatusBadge from '../components/StatusBadge.vue'
 const rows = ref<StockLedger[]>([])
 const loading = ref(true)
 const error = ref('')
+const msg = ref('')
 const filterType = ref('')
 
 const columns = [
@@ -18,7 +19,8 @@ const columns = [
   { key: 'batch_no', label: '批次' },
   { key: 'direction', label: '方向' },
   { key: 'qty', label: '数量' },
-  { key: 'is_reversed', label: '冲销' },
+  { key: 'is_reversed', label: '状态' },
+  { key: 'actions', label: '操作' },
   { key: 'created_at', label: '时间' },
 ]
 
@@ -32,6 +34,17 @@ async function load() {
     error.value = e.message
   } finally {
     loading.value = false
+  }
+}
+
+async function reverse(id: number) {
+  if (!confirm(`确认冲销流水 #${id}？将生成反向流水，不可恢复。`)) return
+  try {
+    await api.post(`/inventory/ledgers/${id}/reverse`, {})
+    msg.value = `流水 #${id} 已冲销`
+    await load()
+  } catch (e: any) {
+    error.value = e.message
   }
 }
 
@@ -49,20 +62,37 @@ onMounted(load)
           <option value="PURCHASE_RETURN">采购退货</option>
           <option value="QC_HOLD">不合格隔离</option>
           <option value="TRANSFER">转移</option>
+          <option value="ADJUST">盘点调整</option>
           <option value="REVERSAL">冲销</option>
           <option value="PRODUCTION_ISSUE">生产领料</option>
+          <option value="PRODUCTION_RETURN">生产退料</option>
+          <option value="PRODUCTION_IN">生产入库</option>
         </select>
         <button class="btn" @click="load">刷新</button>
       </div>
     </div>
     <div v-if="error" class="error-box">{{ error }}</div>
+    <div v-if="msg" class="ok-box">{{ msg }}</div>
     <div class="card">
-      <DataTable :columns="columns" :rows="rows as any" :loading="loading">
+      <DataTable
+        :columns="columns"
+        :rows="rows.map(r => ({ ...r, actions: r.id })) as any"
+        :loading="loading"
+      >
         <template #direction="{ row }">
           <span :class="row.direction === 'IN' ? 'in' : 'out'">{{ row.direction }}</span>
         </template>
         <template #is_reversed="{ row }">
           <StatusBadge v-if="row.is_reversed" status="FAILED" />
+          <span v-else-if="row.source_type === 'REVERSAL'" class="muted">冲销单</span>
+          <span v-else class="ok-text">有效</span>
+        </template>
+        <template #actions="{ row }">
+          <button
+            v-if="!row.is_reversed && row.source_type !== 'REVERSAL'"
+            class="btn sm danger"
+            @click="reverse(Number(row.id))"
+          >冲销</button>
           <span v-else class="muted">—</span>
         </template>
         <template #created_at="{ row }">
@@ -77,13 +107,17 @@ onMounted(load)
 <style scoped>
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem; }
 .page-title { margin: 0; font-size: 1.25rem; color: #1e3a5f; }
-.actions { display: flex; gap: 0.5rem; }
-select { padding: 0.4rem 0.6rem; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.875rem; }
+.actions { display: flex; gap: 0.5rem; align-items: center; }
+select { padding: 0.4rem 0.6rem; border: 1px solid #e2e8f0; border-radius: 6px; }
+.btn { padding: 0.45rem 1rem; border: none; border-radius: 6px; background: #e2e8f0; cursor: pointer; font-size: 0.875rem; }
+.btn.sm { padding: 0.25rem 0.5rem; font-size: 0.75rem; }
+.btn.sm.danger { background: #fee2e2; color: #b91c1c; }
 .card { background: #fff; border-radius: 10px; padding: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
-.btn { padding: 0.45rem 1rem; border: none; border-radius: 6px; font-size: 0.875rem; cursor: pointer; background: #e2e8f0; }
-.error-box { background: #fef2f2; color: #b91c1c; padding: 0.75rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.875rem; }
 .in { color: #15803d; font-weight: 600; }
 .out { color: #b91c1c; font-weight: 600; }
-.muted { color: #cbd5e1; }
-.tip { margin-top: 0.75rem; font-size: 0.8rem; color: #94a3b8; }
+.muted { color: #94a3b8; font-size: 0.8rem; }
+.ok-text { color: #15803d; font-size: 0.8rem; }
+.error-box { background: #fef2f2; color: #b91c1c; padding: 0.75rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.875rem; }
+.ok-box { background: #ecfdf5; color: #065f46; padding: 0.75rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.875rem; }
+.tip { font-size: 0.8rem; color: #94a3b8; margin-top: 0.75rem; }
 </style>
