@@ -21,6 +21,7 @@ export type RouteName =
   | 'quality'
   | 'reports'
   | 'periods'
+  | 'reasons'
   | 'board'
 
 const current = ref<RouteName>('home')
@@ -44,6 +45,7 @@ const routes: Record<RouteName, { title: string; group: string }> = {
   quality: { title: '质量/追溯/成本', group: '质量' },
   reports: { title: '统计报表', group: '统计' },
   periods: { title: '期间结账', group: '系统' },
+  reasons: { title: '原因码', group: '基础数据' },
 }
 
 function parseHash(): RouteName {

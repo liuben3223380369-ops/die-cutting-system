@@ -56,6 +56,19 @@ onMounted(async () => {
   }
 })
 
+function goOpenPo() {
+  sessionStorage.setItem('orders_status_filter', 'CONFIRMED')
+  push('orders')
+}
+function goPendingIqc() {
+  sessionStorage.setItem('arrivals_focus_iqc', '1')
+  push('arrivals')
+}
+function goActiveWo() {
+  sessionStorage.setItem('board_status_filter', 'IN_PROGRESS')
+  push('board')
+}
+
 function metricEntries() {
   if (!daily.value?.metrics) return []
   return Object.entries(metricLabels).map(([k, label]) => ({
@@ -85,17 +98,17 @@ function metricEntries() {
       <div class="card full">
         <h3>待办看板</h3>
         <div class="todo-grid">
-          <button class="todo" @click="push('orders')">
+          <button class="todo" @click="goOpenPo">
             <span class="t-num">{{ todos.openPoLines }}</span>
             <span class="t-label">未结 PO 行</span>
             <span class="t-sub">在途量 {{ todos.openPoQty.toFixed(1) }}</span>
           </button>
-          <button class="todo warn" @click="push('arrivals')">
+          <button class="todo warn" @click="goPendingIqc">
             <span class="t-num">{{ todos.pendingIqc }}</span>
             <span class="t-label">待 IQC</span>
             <span class="t-sub">到货未检行</span>
           </button>
-          <button class="todo" @click="push('board')">
+          <button class="todo" @click="goActiveWo">
             <span class="t-num">{{ todos.activeWo }}</span>
             <span class="t-label">在制工单</span>
             <span class="t-sub">已下达 + 生产中</span>
@@ -139,15 +152,16 @@ function metricEntries() {
           <button class="ql" @click="push('mrp')">销售/MRP</button>
           <button class="ql" @click="push('board')">生产看板</button>
           <button class="ql" @click="push('workOrders')">生产工单</button>
-          <button class="ql" @click="push('orders')">采购订单</button>
+          <button class="ql" @click="goOpenPo">采购订单</button>
           <button class="ql" @click="push('returns')">采购退货</button>
           <button class="ql" @click="push('prices')">价格历史</button>
-          <button class="ql" @click="push('arrivals')">到货/IQC</button>
+          <button class="ql" @click="goPendingIqc">到货/IQC</button>
           <button class="ql" @click="push('balances')">库存余额</button>
           <button class="ql" @click="push('adjust')">盘点/调拨</button>
           <button class="ql" @click="push('reports')">统计报表</button>
           <button class="ql" @click="push('products')">产品/BOM</button>
           <button class="ql" @click="push('quality')">质量追溯</button>
+          <button class="ql" @click="push('reasons')">原因码</button>
         </div>
       </div>
 

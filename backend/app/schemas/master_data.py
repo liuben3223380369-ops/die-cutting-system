@@ -120,3 +120,20 @@ class LocationOut(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class ReasonCodeCreate(BaseModel):
+    category: str
+    code: str
+    name: str
+    is_active: bool = True
+
+
+class ReasonCodeOut(BaseModel):
+    id: int
+    category: str
+    code: str
+    name: str
+    is_active: bool
+
+    model_config = {"from_attributes": True}

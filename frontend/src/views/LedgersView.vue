@@ -17,13 +17,26 @@ const reverseForm = ref({
   remark: '',
 })
 
-const reasonOptions = [
+const reasonOptions = ref([
   { value: 'ERROR', label: '录单错误' },
   { value: 'DUPLICATE', label: '重复入账' },
   { value: 'QTY_WRONG', label: '数量有误' },
   { value: 'BATCH_WRONG', label: '批次有误' },
   { value: 'OTHER', label: '其他' },
-]
+])
+
+async function loadReasons() {
+  try {
+    const list = await api.get<Array<{ code: string; name: string; category: string }>>(
+      '/master/reason-codes?category=REVERSAL'
+    )
+    if (list?.length) {
+      reasonOptions.value = list.map(r => ({ value: r.code, label: r.name }))
+    }
+  } catch {
+    /* keep defaults */
+  }
+}
 
 const columns = [
   { key: 'id', label: 'ID', width: '60px' },
@@ -73,7 +86,7 @@ async function confirmReverse() {
   }
 }
 
-onMounted(load)
+onMounted(() => { load(); loadReasons() })
 </script>
 
 <template>

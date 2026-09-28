@@ -195,7 +195,14 @@ function remainTotal(o: PO) {
   return (o.lines || []).reduce((s, l) => s + (Number(l.qty) - Number(l.qty_received || 0)), 0)
 }
 
-onMounted(load)
+onMounted(() => {
+  const f = sessionStorage.getItem('orders_status_filter')
+  if (f) {
+    statusFilter.value = f
+    sessionStorage.removeItem('orders_status_filter')
+  }
+  load()
+})
 </script>
 
 <template>

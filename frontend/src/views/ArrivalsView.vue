@@ -231,7 +231,13 @@ function lineInfo(a: Arrival) {
     .join('；') || '—'
 }
 
-onMounted(load)
+onMounted(() => {
+  if (sessionStorage.getItem('arrivals_focus_iqc')) {
+    sessionStorage.removeItem('arrivals_focus_iqc')
+    msg.value = '请处理待 IQC 的到货行'
+  }
+  load()
+})
 </script>
 
 <template>

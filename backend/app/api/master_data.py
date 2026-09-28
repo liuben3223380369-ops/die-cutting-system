@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.models.master_data import (
+    ReasonCode,
     MaterialSupplier,
     Customer,
     Location,
@@ -19,6 +20,8 @@ from app.schemas.common import APIResponse
 from app.schemas.master_data import (
     LocationCreate,
     LocationOut,
+    ReasonCodeCreate,
+    ReasonCodeOut,
     MaterialCreate,
     MaterialOut,
     MaterialUpdate,
@@ -273,3 +276,26 @@ async def list_material_suppliers(
             for i in items
         ]
     )
+
+
+@router.post("/reason-codes", response_model=APIResponse)
+async def create_reason_code(body: ReasonCodeCreate, db: AsyncSession = Depends(get_db)):
+    obj = ReasonCode(**body.model_dump())
+    db.add(obj)
+    await db.flush()
+    await db.refresh(obj)
+    return APIResponse(data=ReasonCodeOut.model_validate(obj))
+
+
+@router.get("/reason-codes", response_model=APIResponse)
+async def list_reason_codes(
+    category: str | None = None,
+    db: AsyncSession = Depends(get_db),
+):
+    stmt = select(ReasonCode).where(ReasonCode.is_active == True).order_by(
+        ReasonCode.category, ReasonCode.code
+    )
+    if category:
+        stmt = stmt.where(ReasonCode.category == category)
+    items = (await db.execute(stmt.limit(200))).scalars().all()
+    return APIResponse(data=[ReasonCodeOut.model_validate(i) for i in items])

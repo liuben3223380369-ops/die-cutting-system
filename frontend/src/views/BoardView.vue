@@ -47,6 +47,11 @@ function openWO(id: number) {
 
 let timer: number | undefined
 onMounted(() => {
+  const f = sessionStorage.getItem('board_status_filter')
+  if (f) {
+    filter.value = f
+    sessionStorage.removeItem('board_status_filter')
+  }
   load()
   timer = window.setInterval(load, 30000)
 })
