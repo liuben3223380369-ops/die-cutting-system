@@ -38,6 +38,8 @@ const error = ref('')
 const msg = ref('')
 const statusFilter = ref('')
 const tab = ref<'orders' | 'requests'>('orders')
+const openSummary = ref<any[]>([])
+
 
 const showPO = ref(false)
 const showPR = ref(false)
@@ -66,14 +68,16 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    const [pos, prs, sups, mats] = await Promise.all([
+    const [pos, prs, sups, mats, opens] = await Promise.all([
       api.get<PO[]>('/purchase/orders'),
       api.get<PR[]>('/purchase/requests').catch(() => []),
       api.get<Array<{ id: number; code: string; name: string }>>('/master/suppliers'),
       api.get<Array<{ id: number; code: string; name: string }>>('/master/materials'),
+      api.get<any[]>('/purchase/open-summary').catch(() => []),
     ])
     orders.value = pos
     requests.value = prs || []
+    openSummary.value = opens || []
     suppliers.value = sups
     materials.value = mats
     if (sups.length) {
@@ -251,6 +255,11 @@ onMounted(load)
     </div>
 
     <div v-if="tab === 'orders'" class="card">
+      <p v-if="openSummary.length" class="banner">
+        在途 {{ openSummary.length }} 行，合计数量
+        {{ openSummary.reduce((s, r) => s + Number(r.qty_open || 0), 0).toFixed(1) }}
+        （仅 CONFIRMED / PARTIAL）
+      </p>
       <div class="toolbar-inner">
         <select v-model="statusFilter">
           <option value="">全部状态</option>
@@ -345,5 +354,6 @@ input, select { padding: 0.45rem 0.6rem; border: 1px solid #e2e8f0; border-radiu
 .btn.sm.green { background: #dcfce7; color: #15803d; }
 .error-box { background: #fef2f2; color: #b91c1c; padding: 0.75rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.875rem; }
 .ok-box { background: #ecfdf5; color: #065f46; padding: 0.75rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.875rem; }
+.banner { background: #eff6ff; color: #1d4ed8; padding: 0.5rem 0.75rem; border-radius: 6px; font-size: 0.85rem; margin: 0 0 0.75rem; }
 .muted { color: #94a3b8; font-size: 0.8rem; }
 </style>
